@@ -4,8 +4,6 @@
 
 纯 TypeScript 实现，零 Python 依赖、零外部解释器，通过标准 MCP stdio 协议通信。
 
-> **开发状态**：首个版本 0.1.0 正在开发中，尚未发布到 npm。本文档随实现进度同步更新。
-
 ## 为什么做这个项目
 
 TraeWork 自带的 computer use 体验不佳。本项目完整复刻 [cc-haha](https://github.com/lanlan0811/cc-haha) 的 Windows 像素面实现，并针对「Agent 与用户共享同一套系统输入流」这一 Windows 独有难题，保留了两个关键机制：
@@ -59,24 +57,24 @@ computer-use
 
 ## 配置（环境变量）
 
-全部配置在启动时读取并冻结，`COMPUTER_USE_` 前缀统一：
+全部配置在启动时读取并**冻结**（避免运行中变更造成语义漂移）。`COMPUTER_USE_` 前缀统一：
 
-| 环境变量                             | 默认                      | 说明                          |
-| ------------------------------------ | ------------------------- | ----------------------------- |
-| `COMPUTER_USE_DISABLED`              | 未设置                    | 设为 `1` 总开关关闭           |
-| `COMPUTER_USE_ALLOW_SYSTEM_KEYS`     | `1`                       | 系统快捷键黑名单授权位        |
-| `COMPUTER_USE_ALLOW_CLIPBOARD_READ`  | `1`                       | 剪贴板读授权位                |
-| `COMPUTER_USE_ALLOW_CLIPBOARD_WRITE` | `1`                       | 剪贴板写授权位                |
-| `COMPUTER_USE_PIXEL_VALIDATION`      | `0`                       | 点击目标陈旧性校验开关        |
-| `COMPUTER_USE_PIXEL_VALIDATION_GRID` | `9`                       | 校验网格尺寸                  |
-| `COMPUTER_USE_MOUSE_ANIMATION`       | `1`                       | 弹簧光标动画                  |
-| `COMPUTER_USE_SETTLE_MS`             | `0`                       | 观测前额外等待（默认不加）    |
-| `COMPUTER_USE_ACTION_TIMEOUT_MS`     | 实测确定                  | 单动作硬超时                  |
-| `COMPUTER_USE_APP_CACHE_TTL_MS`      | `60000`                   | 应用清单 TTL 缓存             |
-| `COMPUTER_USE_WORKER_IDLE_MS`        | `300000`                  | worker 空闲退出时间           |
-| `COMPUTER_USE_SHOT_DIR`              | `%TEMP%\computer-use-mcp` | `save_to_disk` 目录           |
-| `COMPUTER_USE_SERVER_NAME`           | `computer-use`            | MCP server 名（决定工具前缀） |
-| `COMPUTER_USE_LOG_LEVEL`             | `info`                    | stderr 日志级别               |
+| 环境变量                             | 默认                      | 说明                                     |
+| ------------------------------------ | ------------------------- | ---------------------------------------- |
+| `COMPUTER_USE_DISABLED`              | 未设置                    | 设为 `1` 总开关关闭                      |
+| `COMPUTER_USE_ALLOW_SYSTEM_KEYS`     | `1`                       | `systemKeyCombos` 授权位                 |
+| `COMPUTER_USE_ALLOW_CLIPBOARD_READ`  | `1`                       | `clipboardRead` 授权位                   |
+| `COMPUTER_USE_ALLOW_CLIPBOARD_WRITE` | `1`                       | `clipboardWrite` 授权位                  |
+| `COMPUTER_USE_PIXEL_VALIDATION`      | `0`                       | 点击目标陈旧性校验开关                   |
+| `COMPUTER_USE_PIXEL_VALIDATION_GRID` | `9`                       | 校验网格尺寸                             |
+| `COMPUTER_USE_MOUSE_ANIMATION`       | `1`                       | 弹簧光标动画                             |
+| `COMPUTER_USE_SETTLE_MS`             | `0`                       | 观测前额外等待（默认不加）               |
+| `COMPUTER_USE_ACTION_TIMEOUT_MS`     | `30000`                   | 单动作硬超时                             |
+| `COMPUTER_USE_APP_CACHE_TTL_MS`      | `60000`                   | 应用清单 TTL 缓存                        |
+| `COMPUTER_USE_WORKER_IDLE_MS`        | `300000`                  | worker 空闲退出时间                      |
+| `COMPUTER_USE_SHOT_DIR`              | `%TEMP%\computer-use-mcp` | `save_to_disk` 目录                      |
+| `COMPUTER_USE_SERVER_NAME`           | `computer-use`            | MCP server 名（决定工具前缀）            |
+| `COMPUTER_USE_LOG_LEVEL`             | `info`                    | stderr 日志级别（debug/info/warn/error） |
 
 ## 工具清单
 
@@ -99,23 +97,29 @@ computer-use
 | 20  | `mouse_down` / `mouse_up`                                                  | 左键按下 / 释放                                          |
 | 22  | `batch`                                                                    | 批量动作（逐动作门禁、遇错即停、坐标相对批次开始前截图） |
 
+完整参数说明见 [docs/TOOLS.md](docs/TOOLS.md)。
+
 ## 安全模型
 
 工具调用按固定顺序过门禁：总开关 → 参数校验 → 跨进程文件锁 → 前台应用识别（取不到即拒绝）→ 投递前置校验 → 执行。任一门禁异常，执行器绝不被调用（fail-closed）。
 
 错误码区分两类语义，这是防止模型重复施加动作的唯一手段：`user_interference`（没发，可重试）与 `user_interference_result_unknown`（已发，结果未知，先截图）。
 
-安全边界（已写入 MCP `instructions`）：密码变更、证书警告、转账、就业/住房/信贷决定 → 交回用户；CAPTCHA、不可恢复删除、法律协议、陌生来源安装、API key/OAuth、VPN/网络/系统安全设置 → 动作前当场询问。
+安全边界（已写入 MCP `instructions`）：密码变更、证书警告、转账、就业/住房/信贷决定 → 交回用户；CAPTCHA、不可恢复删除、法律协议、陌生来源安装、API key/OAuth、VPN/网络/系统安全设置 → 动作前当场询问。详见 [docs/SAFETY.md](docs/SAFETY.md)。
 
 ## 开发
 
 ```bash
 npm install
-npm run check      # typecheck + lint + format:check + test + build
-npm test           # 仅测试
-npm run test:desktop  # 真实桌面测试（默认不跑，需 COMPUTER_USE_DESKTOP_TESTS=1）
+npm run check            # typecheck + lint + format:check + test + build
+npm test                 # 单元 + 契约测试（153 个）
+npm run smoke:worker     # worker live 冒烟（真实截图/租约/应用清单）
+npm run smoke:mcp        # MCP 服务器 live 冒烟（握手/22 工具/真实调用）
+npm run test:desktop     # 真实桌面测试（默认不跑，需 COMPUTER_USE_DESKTOP_TESTS=1）
 ```
+
+详细文档：[架构](docs/ARCHITECTURE.md) · [工具参考](docs/TOOLS.md) · [安全模型](docs/SAFETY.md) · [与 cc-haha 的逐项对应](docs/PARITY.md)
 
 ## 许可
 
-MIT，详见 [LICENSE](./LICENSE) 与 [NOTICE](./NOTICE)（逐项列出依赖许可）。
+MIT，详见 [LICENSE](LICENSE) 与 [NOTICE](NOTICE)（逐项列出依赖许可）。

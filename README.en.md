@@ -4,8 +4,6 @@
 
 Pure TypeScript, zero Python dependencies, zero external interpreters, speaking standard MCP over stdio.
 
-> **Development status**: the first release (0.1.0) is in progress and not yet published to npm. This document tracks the implementation.
-
 ## Why this project
 
 The computer-use experience bundled with TraeWork leaves a lot to be desired. This project faithfully replicates the Windows pixel surface of [cc-haha](https://github.com/lanlan0811/cc-haha), preserving the two mechanisms that matter most on Windows, where the agent shares one system input stream with the user:
@@ -59,7 +57,7 @@ Configure your MCP client (stdio example):
 
 ## Configuration (environment variables)
 
-All configuration is read once at startup and frozen. Every variable uses the `COMPUTER_USE_` prefix:
+All configuration is read once at startup and frozen (a mid-session change would desynchronize the model-facing descriptions from the runtime behavior). Every variable uses the `COMPUTER_USE_` prefix:
 
 | Variable                             | Default                   | Description                                          |
 | ------------------------------------ | ------------------------- | ---------------------------------------------------- |
@@ -71,12 +69,12 @@ All configuration is read once at startup and frozen. Every variable uses the `C
 | `COMPUTER_USE_PIXEL_VALIDATION_GRID` | `9`                       | Validation grid size                                 |
 | `COMPUTER_USE_MOUSE_ANIMATION`       | `1`                       | Spring cursor animation                              |
 | `COMPUTER_USE_SETTLE_MS`             | `0`                       | Extra settle time before observing (none by default) |
-| `COMPUTER_USE_ACTION_TIMEOUT_MS`     | measured                  | Per-action hard timeout                              |
+| `COMPUTER_USE_ACTION_TIMEOUT_MS`     | `30000`                   | Per-action hard timeout                              |
 | `COMPUTER_USE_APP_CACHE_TTL_MS`      | `60000`                   | App list TTL cache                                   |
 | `COMPUTER_USE_WORKER_IDLE_MS`        | `300000`                  | Worker idle shutdown                                 |
 | `COMPUTER_USE_SHOT_DIR`              | `%TEMP%\computer-use-mcp` | `save_to_disk` directory                             |
 | `COMPUTER_USE_SERVER_NAME`           | `computer-use`            | MCP server name (controls tool prefix)               |
-| `COMPUTER_USE_LOG_LEVEL`             | `info`                    | stderr log level                                     |
+| `COMPUTER_USE_LOG_LEVEL`             | `info`                    | stderr log level (debug/info/warn/error)             |
 
 ## Tool list
 
@@ -99,23 +97,29 @@ All configuration is read once at startup and frozen. Every variable uses the `C
 | 20  | `mouse_down` / `mouse_up`                                                  | Left button down / up                                                                                    |
 | 22  | `batch`                                                                    | Batch actions (per-action gating, stop on first error, coordinates relative to the pre-batch screenshot) |
 
+Full parameter reference: [docs/TOOLS.md](docs/TOOLS.md).
+
 ## Safety model
 
-Every call passes a fixed gate order: master switch → argument validation → cross-process file lock → foreground app identification (unidentifiable means refused) → delivery pre-checks → execution. If any gate throws, the executor is never invoked (fail-closed).
+Every call passes a fixed gate order: master switch → argument validation → cross-process lock → foreground app identification (unidentifiable means refused) → delivery pre-checks → execution. If any gate throws, the executor is never invoked (fail-closed).
 
 Error codes carry two semantics, and that distinction is the only thing preventing repeated application of the same action: `user_interference` (not sent, safe to retry) versus `user_interference_result_unknown` (sent, outcome unknown — screenshot first).
 
-Safety boundaries (baked into the MCP `instructions`): password changes, certificate warnings, money transfers, employment/housing/credit decisions → hand back to the user; CAPTCHAs, irreversible deletion, legal agreements, installing software from unknown sources, API keys/OAuth, VPN/network/system security settings → ask in the moment before acting.
+Safety boundaries (baked into the MCP `instructions`): password changes, certificate warnings, money transfers, employment/housing/credit decisions → hand back to the user; CAPTCHAs, irreversible deletion, legal agreements, unfamiliar software installation, API keys/OAuth, VPN/network/system security settings → ask in the moment before acting. See [docs/SAFETY.md](docs/SAFETY.md).
 
 ## Development
 
 ```bash
 npm install
-npm run check      # typecheck + lint + format:check + test + build
-npm test           # tests only
-npm run test:desktop  # real desktop tests (off by default; needs COMPUTER_USE_DESKTOP_TESTS=1)
+npm run check            # typecheck + lint + format:check + test + build
+npm test                 # unit + contract tests (153)
+npm run smoke:worker     # worker live smoke (real capture / lease / app inventory)
+npm run smoke:mcp        # MCP server live smoke (handshake / 22 tools / real calls)
+npm run test:desktop     # real desktop tests (off by default; needs COMPUTER_USE_DESKTOP_TESTS=1)
 ```
+
+Documentation: [Architecture](docs/ARCHITECTURE.md) · [Tool reference](docs/TOOLS.md) · [Safety model](docs/SAFETY.md) · [cc-haha parity](docs/PARITY.md)
 
 ## License
 
-MIT. See [LICENSE](./LICENSE) and [NOTICE](./NOTICE) (per-dependency license list).
+MIT. See [LICENSE](LICENSE) and [NOTICE](NOTICE) (per-dependency license list).
