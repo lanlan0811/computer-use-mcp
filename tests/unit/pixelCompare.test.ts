@@ -54,33 +54,33 @@ describe('computeCropRect', () => {
 });
 
 describe('comparePixelAtLocation', () => {
-  const cropEq = () => Buffer.from([1, 2, 3]);
-  const cropDiff = (b64: string) =>
+  const cropEq = async () => Buffer.from([1, 2, 3]);
+  const cropDiff = async (b64: string) =>
     b64 === 'a' ? Buffer.from([1, 2, 3]) : Buffer.from([9, 9, 9]);
 
-  it('true when patches are byte-identical', () => {
-    expect(comparePixelAtLocation(cropEq, shot('a'), shot('b'), 50, 50)).toBe(
-      true,
-    );
+  it('true when patches are byte-identical', async () => {
+    expect(
+      await comparePixelAtLocation(cropEq, shot('a'), shot('b'), 50, 50),
+    ).toBe(true);
   });
 
-  it('false when patches differ', () => {
-    expect(comparePixelAtLocation(cropDiff, shot('a'), shot('b'), 50, 50)).toBe(
-      false,
-    );
+  it('false when patches differ', async () => {
+    expect(
+      await comparePixelAtLocation(cropDiff, shot('a'), shot('b'), 50, 50),
+    ).toBe(false);
   });
 
-  it('false (skipped by caller) when the crop fails', () => {
-    const cropNull = () => null;
-    expect(comparePixelAtLocation(cropNull, shot('a'), shot('b'), 50, 50)).toBe(
-      false,
-    );
+  it('false (skipped by caller) when the crop fails', async () => {
+    const cropNull = async () => null;
+    expect(
+      await comparePixelAtLocation(cropNull, shot('a'), shot('b'), 50, 50),
+    ).toBe(false);
   });
 });
 
 describe('validateClickTarget', () => {
   const logger = { debug: vi.fn() };
-  const cropEq = () => Buffer.from([1, 2, 3]);
+  const cropEq = async () => Buffer.from([1, 2, 3]);
 
   it('skips on cold start (no last screenshot)', async () => {
     const result = await validateClickTarget(
@@ -134,7 +134,7 @@ describe('validateClickTarget', () => {
   });
 
   it('invalid with a warning when the target changed', async () => {
-    const cropDiff = (b64: string) =>
+    const cropDiff = async (b64: string) =>
       b64 === 'last' ? Buffer.from([1, 2, 3]) : Buffer.from([9, 9, 9]);
     const result = await validateClickTarget(
       cropDiff,

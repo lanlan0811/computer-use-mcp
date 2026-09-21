@@ -17,11 +17,17 @@
 
 import type { CropRect, ScreenshotResult } from './types.js';
 
-/** Injected by the worker layer: decode a JPEG and crop raw pixels. */
+/**
+ * Injected by the worker layer: decode a JPEG and crop raw pixels.
+ *
+ * Async because this project decodes with sharp (cc-haha injected Electron's
+ * synchronous nativeImage from its host); the comparison semantics are
+ * otherwise identical.
+ */
 export type CropRawPatchFn = (
   jpegBase64: string,
   rect: CropRect,
-) => Buffer | null;
+) => Promise<Buffer | null>;
 
 /** 9×9 is empirically the sweet spot — large enough to catch a tooltip
  *  appearing, small enough to not false-positive on surrounding animation. */
@@ -76,14 +82,14 @@ export function computeCropRect(
  * difference, or on any internal error (the caller treats an error here as
  * `skipped`, so the false is harmless).
  */
-export function comparePixelAtLocation(
+export async function comparePixelAtLocation(
   crop: CropRawPatchFn,
   lastScreenshot: ScreenshotResult,
   freshScreenshot: ScreenshotResult,
   xPercent: number,
   yPercent: number,
   gridSize: number = DEFAULT_GRID_SIZE,
-): boolean {
+): Promise<boolean> {
   // Both screenshots are of the same display — use the fresh one's
   // dimensions (less likely to be stale than last's).
   const rect = computeCropRect(
@@ -95,8 +101,8 @@ export function comparePixelAtLocation(
   );
   if (!rect) return false;
 
-  const patch1 = crop(lastScreenshot.base64, rect);
-  const patch2 = crop(freshScreenshot.base64, rect);
+  const patch1 = await crop(lastScreenshot.base64, rect);
+  const patch2 = await crop(freshScreenshot.base64, rect);
   if (!patch1 || !patch2) return false;
 
   // Direct buffer equality. We compare two same-format buffers, so the
@@ -132,7 +138,7 @@ export async function validateClickTarget(
       return { valid: true, skipped: true };
     }
 
-    const pixelsMatch = comparePixelAtLocation(
+    const pixelsMatch = await comparePixelAtLocation(
       crop,
       lastScreenshot,
       fresh,

@@ -1,12 +1,24 @@
-// stdio MCP server entry point.
-//
-// Phase 1 scaffold: the full server (tool registry, dispatch, gates) lands in
-// Phase 4. This stub exists so the toolchain (typecheck, build) has an entry
-// point and the published `bin` resolves.
-//
-// stdout is reserved for the MCP protocol; all diagnostics go to stderr.
+/**
+ * stdio MCP server entry point (the published `computer-use` bin).
+ *
+ * stdout is reserved for the MCP protocol; all diagnostics go to stderr.
+ */
 
-process.stderr.write(
-  'computer-use: server not implemented yet (Phase 1 scaffold)\n',
-);
-process.exitCode = 1;
+import process from 'node:process';
+
+import { config } from './core/config.js';
+import { createLogger } from './mcp/logging.js';
+import { main } from './mcp/server.js';
+
+const logger = createLogger('startup');
+
+main().catch((error: unknown) => {
+  logger.error(
+    `fatal: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`,
+  );
+  process.exitCode = 1;
+});
+
+if (config.disabled) {
+  logger.warn('COMPUTER_USE_DISABLED is set: every tool call will refuse');
+}
