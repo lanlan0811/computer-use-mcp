@@ -12,42 +12,34 @@ const RECT = koffi.struct('R', {
   bottom: 'int32',
 });
 
-const WindowFromPoint = user32.func(
-  '__stdcall',
-  'WindowFromPoint',
+const WindowFromPoint = user32.func('__stdcall', 'WindowFromPoint', 'void *', [
+  'int32',
+  'int32',
+]);
+const GetAncestor = user32.func('__stdcall', 'GetAncestor', 'void *', [
   'void *',
-  ['int32', 'int32'],
-);
-const GetAncestor = user32.func(
-  '__stdcall',
-  'GetAncestor',
-  'void *',
-  ['void *', 'uint32'],
-);
+  'uint32',
+]);
 const GetWindowThreadProcessId = user32.func(
   '__stdcall',
   'GetWindowThreadProcessId',
   'uint32',
   ['void *', 'uint32 *'],
 );
-const GetClassNameW = user32.func(
-  '__stdcall',
-  'GetClassNameW',
-  'int32',
-  ['void *', 'void *', 'int32'],
-);
-const GetWindowRect = user32.func(
-  '__stdcall',
-  'GetWindowRect',
-  'int32',
-  ['void *', koffi.pointer(RECT)],
-);
-const OpenProcess = kernel32.func(
-  '__stdcall',
-  'OpenProcess',
+const GetClassNameW = user32.func('__stdcall', 'GetClassNameW', 'int32', [
   'void *',
-  ['uint32', 'int32', 'uint32'],
-);
+  'void *',
+  'int32',
+]);
+const GetWindowRect = user32.func('__stdcall', 'GetWindowRect', 'int32', [
+  'void *',
+  koffi.pointer(RECT),
+]);
+const OpenProcess = kernel32.func('__stdcall', 'OpenProcess', 'void *', [
+  'uint32',
+  'int32',
+  'uint32',
+]);
 const QueryFullProcessImageNameW = kernel32.func(
   '__stdcall',
   'QueryFullProcessImageNameW',
@@ -59,9 +51,7 @@ const classBuf = new Uint16Array(256);
 
 function readCString(buffer, length) {
   const end = buffer.indexOf(0);
-  return String.fromCharCode(
-    ...buffer.subarray(0, end === -1 ? length : end),
-  );
+  return String.fromCharCode(...buffer.subarray(0, end === -1 ? length : end));
 }
 
 function probe(x, y) {

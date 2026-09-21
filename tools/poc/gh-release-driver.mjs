@@ -51,7 +51,10 @@ let nextId = 1;
 function rpc(method, params) {
   const id = nextId++;
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`timeout: ${method}`)), 90000);
+    const timer = setTimeout(
+      () => reject(new Error(`timeout: ${method}`)),
+      90000,
+    );
     pending.set(id, (message) => {
       clearTimeout(timer);
       resolve(message);
@@ -70,7 +73,8 @@ async function handshake() {
     capabilities: {},
     clientInfo: { name: 'gh-release-driver', version: '0.1.0' },
   });
-  if (!init.result) throw new Error(`initialize failed: ${JSON.stringify(init)}`);
+  if (!init.result)
+    throw new Error(`initialize failed: ${JSON.stringify(init)}`);
   server.stdin.write(
     `${JSON.stringify({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} })}\n`,
   );
@@ -134,18 +138,34 @@ try {
   } else if (command === 'click') {
     const [x, y] = args.map(Number);
     const result = await callTool('click', { coordinate: [x, y] });
-    console.log(result.result?.isError ? `CLICK ERROR: ${textOf(result.result)}` : textOf(result.result));
+    console.log(
+      result.result?.isError
+        ? `CLICK ERROR: ${textOf(result.result)}`
+        : textOf(result.result),
+    );
   } else if (command === 'type') {
     const text = args.join(' ');
     const result = await callTool('type_text', { text });
-    console.log(result.result?.isError ? `TYPE ERROR: ${textOf(result.result)}` : textOf(result.result));
+    console.log(
+      result.result?.isError
+        ? `TYPE ERROR: ${textOf(result.result)}`
+        : textOf(result.result),
+    );
   } else if (command === 'typefile') {
     const text = (await import('node:fs')).readFileSync(args[0], 'utf8');
     const result = await callTool('type_text', { text });
-    console.log(result.result?.isError ? `TYPE ERROR: ${textOf(result.result)}` : textOf(result.result));
+    console.log(
+      result.result?.isError
+        ? `TYPE ERROR: ${textOf(result.result)}`
+        : textOf(result.result),
+    );
   } else if (command === 'key') {
     const result = await callTool('press_key', { text: args[0] });
-    console.log(result.result?.isError ? `KEY ERROR: ${textOf(result.result)}` : textOf(result.result));
+    console.log(
+      result.result?.isError
+        ? `KEY ERROR: ${textOf(result.result)}`
+        : textOf(result.result),
+    );
   } else {
     console.log('unknown command:', command);
   }
