@@ -37,7 +37,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:desktop": "cross-env COMPUTER_USE_DESKTOP_TESTS=1 vitest run tests/desktop",
+    "test:desktop": "cross-env COMPUTER_USE_DESKTOP_TESTS=1 vitest run --config vitest.config.desktop.ts",
     "smoke:worker": "node tools/smoke/worker-smoke.mjs",
     "smoke:mcp": "node tools/smoke/mcp-smoke.mjs",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run test && npm run build",

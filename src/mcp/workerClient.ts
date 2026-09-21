@@ -59,6 +59,9 @@ interface PendingRequest {
 const CRASH_WINDOW_MS = 60000;
 const CRASH_LIMIT = 3;
 
+/** Children whose exit was requested by shutdown() — not a crash. */
+const intentionalExits = new WeakSet<ChildProcessWithoutNullStreams>();
+
 export class WorkerUnavailable extends CuToolError {
   constructor(message: string) {
     super('worker_crashed_result_unknown', message);
@@ -118,6 +121,8 @@ export class WorkerClient {
     });
     this.child = child;
     this.framer = new LineFramer();
+    // An exit is "expected" only when shutdown() marked this exact child;
+    // anything else is a crash, even if a respawn already replaced us.
 
     child.stdout.setEncoding('utf8');
     child.stdout.on('data', (chunk: string) => {
@@ -135,11 +140,9 @@ export class WorkerClient {
       logger.error(`worker process error: ${error.message}`);
     });
     child.on('exit', (code: number | null, signal: string | null) => {
-      const wasExpected = this.child !== child || this.stopped;
-      this.child = null;
+      if (this.child === child) this.child = null;
       this.clearIdleTimer();
-      if (wasExpected) return;
-      // Unexpected exit: fail in-flight work as result-unknown.
+      if (intentionalExits.has(child)) return;
       this.registerCrash();
       const detail = signal ? `signal ${signal}` : `code ${code}`;
       logger.error(`worker exited unexpectedly (${detail})`);
@@ -260,6 +263,7 @@ export class WorkerClient {
     const child = this.child;
     this.child = null;
     if (!child) return;
+    intentionalExits.add(child);
     try {
       child.stdin.end();
     } catch {

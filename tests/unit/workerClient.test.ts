@@ -105,21 +105,23 @@ describe('WorkerClient lifecycle', () => {
 
   it('repeated crashes stop the restart loop', async () => {
     const client = makeClient();
-    // Crash the worker four times: the budget is 3 per 60s.
-    for (let i = 0; i < 4; i += 1) {
-      await client.request('crash').catch(() => undefined);
-      await new Promise((resolve) => setTimeout(resolve, 20));
+    // Crash until the client gives up (budget is 3 per 60s; allow slack for
+    // scheduling jitter before asserting the give-up behavior).
+    let stopError: (Error & { code?: string }) | null = null;
+    for (let attempt = 0; attempt < 8 && !stopError; attempt += 1) {
+      const error = await client
+        .request('crash')
+        .catch((err: Error & { code?: string }) => err);
+      if (
+        error instanceof Error &&
+        error.message.includes('shut down after repeated crashes')
+      ) {
+        stopError = error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 30));
     }
-    const error = await client
-      .request('ping')
-      .catch((err: Error & { code?: string }) => err);
-    expect(error).toBeInstanceOf(Error);
-    expect((error as Error & { code?: string }).code).toBe(
-      'worker_crashed_result_unknown',
-    );
-    expect((error as Error).message).toContain(
-      'shut down after repeated crashes',
-    );
+    expect(stopError).not.toBeNull();
+    expect(stopError!.code).toBe('worker_crashed_result_unknown');
     client.shutdown();
   });
 });

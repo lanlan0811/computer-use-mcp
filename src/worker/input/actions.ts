@@ -24,6 +24,7 @@ import {
   namedKeyInput,
   readCursorPos,
   sendInputs,
+  sleepPumped,
   type InputEvent,
 } from './inject.js';
 
@@ -121,7 +122,7 @@ export function holdKeys(keys: string[], durationMs: number): void {
   const normalized = keys.map(normalizeKey);
   sendInputs(normalized.map((key) => namedKeyInput(key)));
   try {
-    Sleep(Math.max(durationMs, 0));
+    sleepPumped(Math.max(durationMs, 0));
   } finally {
     sendInputs(
       [...normalized]

@@ -74,9 +74,15 @@ export const INPUT_TAG: bigint = BigInt(crypto.randomInt(1, 0xffffffff));
  * Mirrors cc-haha's `_active_input_monitor` global: the worker is resident,
  * so tagged-event accounting must reset per action instead of accumulating
  * across the process lifetime (cc-haha spawned one process per command).
+ *
+ * The sink also pumps the message queue during long blocking sleeps: the
+ * main-thread pump architecture (Phase 0) means physical input would
+ * otherwise go unobserved — and eventually be dropped by the system — while
+ * the worker blocks in a hold duration or a per-character typing loop.
  */
 export interface AgentEventSink {
   expectAgentEvents(count: number): void;
+  pump(): void;
 }
 
 let activeSink: AgentEventSink | null = null;
@@ -255,7 +261,7 @@ export function moveCursorTo(x: number, y: number, animate: boolean): void {
     if (index < points.length - 1) {
       const deadline = started + ((index + 1) / 60.0) * 1000;
       const delay = deadline - performance.now();
-      if (delay > 0) Sleep(Math.ceil(delay));
+      if (delay > 0) sleepPumped(delay);
     }
   }
 }
@@ -364,7 +370,7 @@ export function typeText(text: string, charDelayMs: number): void {
   let index = 0;
   while (index < text.length) {
     const character = text[index]!;
-    Sleep(charDelayMs);
+    sleepPumped(charDelayMs);
     if (character === '\r' || character === '\n' || character === '\t') {
       if (character === '\r' && text[index + 1] === '\n') index += 1;
       const key = normalizeKey(character === '\t' ? 'tab' : 'return');
@@ -394,6 +400,25 @@ export function leftButtonEvent(down: boolean): InputEvent {
 /** Test escape hatch: fire a raw untagged legacy event (never in production). */
 export function legacyKeybdEvent(vk: number, flags: number): void {
   keybd_event(vk, 0, flags, 0n);
+}
+
+/** Chunk size for pumped sleeps: keeps hook timeouts away. */
+const PUMP_INTERVAL_MS = 25;
+
+/**
+ * Sleep that keeps the input pump alive. Every blocking loop in the worker
+ * (hold duration, per-character pacing, spring frames) goes through here so
+ * physical input is observed while the action runs.
+ */
+export function sleepPumped(ms: number): void {
+  if (ms <= 0) return;
+  const deadline = Date.now() + ms;
+  for (;;) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) break;
+    Sleep(Math.min(remaining, PUMP_INTERVAL_MS));
+    activeSink?.pump();
+  }
 }
 
 export const _test = {

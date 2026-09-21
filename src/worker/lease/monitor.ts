@@ -171,6 +171,25 @@ export class PhysicalInputMonitor implements AgentEventSink {
   }
 
   /**
+   * Drain pending window messages WITHOUT posting a barrier.
+   *
+   * The main-thread pump architecture (Phase 0) means nothing polls the
+   * message queue while the worker blocks in a long sleep — Windows then
+   * times the low-level hooks out and physical input is lost. Long
+   * operations (hold duration, per-character typing, spring frames) call
+   * this between sleep chunks so the hooks keep observing the user, exactly
+   * as cc-haha's dedicated pump thread did.
+   */
+  pump(): void {
+    if (!this.started) return;
+    for (;;) {
+      if (!PeekMessageW(this.msgBuf, null, 0, 0, PM_REMOVE)) break;
+      // Hook procs for queued input events already ran inline above; any
+      // other message (including a stale barrier) is discarded.
+    }
+  }
+
+  /**
    * Drain earlier hook callbacks and return the physical input count.
    * Synchronous by design: it holds the thread, so libuv cannot consume the
    * barrier message before our own PeekMessageW sees it.

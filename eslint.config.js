@@ -36,4 +36,11 @@ export default tseslint.config(
       'no-console': 'off',
     },
   },
+  {
+    // Tests report progress on stdout; production code never does.
+    files: ['tests/**/*.ts'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
 );
