@@ -1,0 +1,91 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    name: check, build, publish
+    runs-on: windows-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          registry-url: 'https://registry.npmjs.org'
+
+      # Full gate first: never publish a red tree.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check (typecheck, lint, format, test)
+        run: npm run typecheck && npm run lint && npm run format:check && npm run test
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify build output has no sourcemaps
+        shell: pwsh
+        run: |
+          $maps = Get-ChildItem -Path dist -Recurse -Filter *.map -ErrorAction SilentlyContinue
+          if ($maps) {
+            Write-Host "::error::sourcemap files found in dist: $($maps -join ', ')"
+            exit 1
+          }
+          Write-Host "no .map files in dist"
+
+      - name: Verify the tarball whitelist
+        shell: pwsh
+        run: |
+          $pack = npm pack --dry-run --json | ConvertFrom-Json
+          $files = $pack[0].files | ForEach-Object { $_.path }
+          Write-Host "tarball files: $($files -join ', ')"
+          $maps = $files | Where-Object { $_ -like '*.map' }
+          if ($maps) {
+            Write-Host "::error::tarball contains sourcemaps: $($maps -join ', ')"
+            exit 1
+          }
+          foreach ($required in @('dist/index.js', 'dist/worker/entry.js', 'assets/icon.svg', 'README.md', 'LICENSE', 'NOTICE', 'CHANGELOG.md')) {
+            if ($files -notcontains $required) {
+              Write-Host "::error::tarball is missing $required"
+              exit 1
+            }
+          }
+          Write-Host "tarball whitelist verified"
+
+      - name: Publish to npm
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Extract release notes
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag.TrimStart('v')
+          $changelog = Get-Content -Raw CHANGELOG.md
+          $start = $changelog.IndexOf("## [$version]")
+          if ($start -lt 0) { throw "no CHANGELOG entry for $version" }
+          $end = $changelog.IndexOf("## [", $start + 5)
+          if ($end -lt 0) { $end = $changelog.Length }
+          $notes = $changelog.Substring($start, $end - $start).TrimEnd()
+          Set-Content -Path release-notes.md -Value $notes
+          Write-Host "release notes extracted for $version"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          gh release create $tag `
+            --title $tag `
+            --notes-file release-notes.md `
+            dist/index.js dist/worker/entry.js
