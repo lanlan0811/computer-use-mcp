@@ -1,0 +1,10 @@
+# Normalize line endings: LF in the repository and on every checkout.
+# Without this, Windows CI checkouts convert text files to CRLF and
+# prettier (endOfLine: lf) fails the format check.
+* text=auto eol=lf
+
+# Binary assets must never be touched by line-ending conversion.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
