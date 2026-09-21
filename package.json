@@ -1,0 +1,63 @@
+{
+  "name": "@lotteai/computer-use",
+  "version": "0.1.0",
+  "description": "Windows computer-use MCP server: screenshot, input, clipboard and app control over stdio, for any MCP-capable agent.",
+  "keywords": [
+    "mcp",
+    "computer-use",
+    "windows",
+    "automation",
+    "screenshot",
+    "model-context-protocol"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "computer-use": "dist/index.js"
+  },
+  "files": [
+    "dist/",
+    "assets/",
+    "README.md",
+    "README.en.md",
+    "LICENSE",
+    "NOTICE",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:desktop": "cross-env COMPUTER_USE_DESKTOP_TESTS=1 vitest run tests/desktop",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test && npm run build",
+    "prepublishOnly": "npm run check"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "koffi": "^3.3.1",
+    "sharp": "^0.35.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^24.0.0",
+    "cross-env": "^10.1.0",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.0.1",
+    "prettier": "^3.9.8",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.70.0",
+    "vitest": "^3.2.7"
+  },
+  "allowScripts": {
+    "koffi@3.3.1": true,
+    "esbuild@0.27.7": true
+  }
+}
