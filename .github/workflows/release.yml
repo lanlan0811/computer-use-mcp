@@ -60,7 +60,22 @@ jobs:
           }
           Write-Host "tarball whitelist verified"
 
+      - name: Resolve published state
+        id: published
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag.TrimStart('v')
+          $existing = npm view "@lotteai/computer-use@$version" version 2>$null
+          if ($existing) {
+            Write-Host "::notice::version $version is already on npm; publish step will be skipped"
+            "already=true" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          } else {
+            "already=false" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          }
+
       - name: Publish to npm
+        if: steps.published.outputs.already != 'true'
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
