@@ -160,7 +160,11 @@ export class WorkerClient {
     });
 
     // Protocol handshake: a bad version refuses startup with a clear error.
-    await this.request('ping', {});
+    // The handshake gets a generous floor: spawning the process and loading
+    // the ESM worker can take seconds on a cold or loaded machine, and that
+    // startup cost is not an "action timeout".
+    const handshakeTimeoutMs = Math.max(config.actionTimeoutMs, 10000);
+    await this.request('ping', {}, handshakeTimeoutMs);
     logger.info(`worker up (protocol v${PROTOCOL_VERSION})`);
   }
 
@@ -208,6 +212,7 @@ export class WorkerClient {
   async request(
     action: string,
     payload: Record<string, unknown> = {},
+    timeoutMsOverride?: number,
   ): Promise<unknown> {
     await this.ensureStarted();
     const child = this.child;
@@ -215,7 +220,7 @@ export class WorkerClient {
       throw new WorkerUnavailable('The computer-use worker is not running.');
     }
     const id = this.nextId++;
-    const timeoutMs = config.actionTimeoutMs;
+    const timeoutMs = timeoutMsOverride ?? config.actionTimeoutMs;
     return new Promise<unknown>((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
