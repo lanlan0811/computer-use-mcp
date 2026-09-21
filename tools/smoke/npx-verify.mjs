@@ -64,7 +64,9 @@ function rpc(method, params) {
 let failures = 0;
 function check(name, ok, detail) {
   if (!ok) failures += 1;
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${detail ? ` -- ${detail}` : ''}`);
+  console.log(
+    `[${ok ? 'PASS' : 'FAIL'}] ${name}${detail ? ` -- ${detail}` : ''}`,
+  );
 }
 
 try {
@@ -108,7 +110,8 @@ try {
 } catch (error) {
   failures += 1;
   console.log(`[FAIL] npx verify threw: ${error.message}`);
-  if (stderr.trim() !== '') console.log(stderr.trim().split('\n').slice(-5).join('\n'));
+  if (stderr.trim() !== '')
+    console.log(stderr.trim().split('\n').slice(-5).join('\n'));
 } finally {
   server.stdin.end();
   await new Promise((r) => setTimeout(r, 500));
