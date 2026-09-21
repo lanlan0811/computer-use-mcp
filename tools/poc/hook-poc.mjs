@@ -105,7 +105,9 @@ const SIZES = [
 ];
 
 // --- Bindings ----------------------------------------------------------------
-const HOOKPROC = koffi.proto('int64_t __stdcall HookProc(int32, uint64, int64)');
+const HOOKPROC = koffi.proto(
+  'int64_t __stdcall HookProc(int32, uint64, int64)',
+);
 const THREADPROC = koffi.proto('uint32 __stdcall ThreadProc(void *)');
 
 const GetCurrentThreadId = kernel32.func(
@@ -114,12 +116,13 @@ const GetCurrentThreadId = kernel32.func(
   'uint32',
   [],
 );
-const PeekMessageW = user32.func(
-  '__stdcall',
-  'PeekMessageW',
-  'int32',
-  [koffi.pointer(MSG), 'void *', 'uint32', 'uint32', 'uint32'],
-);
+const PeekMessageW = user32.func('__stdcall', 'PeekMessageW', 'int32', [
+  koffi.pointer(MSG),
+  'void *',
+  'uint32',
+  'uint32',
+  'uint32',
+]);
 const PostThreadMessageW = user32.func(
   '__stdcall',
   'PostThreadMessageW',
@@ -138,30 +141,31 @@ const UnhookWindowsHookEx = user32.func(
   'int32',
   ['void *'],
 );
-const CallNextHookEx = user32.func(
-  '__stdcall',
-  'CallNextHookEx',
-  'int64_t',
-  ['void *', 'int32', 'uint64', 'int64'],
-);
-const SendInput = user32.func(
-  '__stdcall',
-  'SendInput',
-  'uint32',
-  ['uint32', koffi.pointer(INPUT), 'int32'],
-);
-const keybd_event = user32.func(
-  '__stdcall',
-  'keybd_event',
-  'void',
-  ['uint8', 'uint8', 'uint32', 'uint64'],
-);
-const CreateThread = kernel32.func(
-  '__stdcall',
-  'CreateThread',
+const CallNextHookEx = user32.func('__stdcall', 'CallNextHookEx', 'int64_t', [
   'void *',
-  ['void *', 'size_t', koffi.pointer(THREADPROC), 'void *', 'uint32', 'uint32 *'],
-);
+  'int32',
+  'uint64',
+  'int64',
+]);
+const SendInput = user32.func('__stdcall', 'SendInput', 'uint32', [
+  'uint32',
+  koffi.pointer(INPUT),
+  'int32',
+]);
+const keybd_event = user32.func('__stdcall', 'keybd_event', 'void', [
+  'uint8',
+  'uint8',
+  'uint32',
+  'uint64',
+]);
+const CreateThread = kernel32.func('__stdcall', 'CreateThread', 'void *', [
+  'void *',
+  'size_t',
+  koffi.pointer(THREADPROC),
+  'void *',
+  'uint32',
+  'uint32 *',
+]);
 const Sleep = kernel32.func('__stdcall', 'Sleep', 'void', ['uint32']);
 
 // --- Monitor state (mirrors PhysicalInputMonitor) ----------------------------
@@ -296,11 +300,15 @@ function sendInputs(events) {
   // parameter (koffi doc/pointers.md, dynamic arrays).
   const sent = SendInput(events.length, events, koffi.sizeof(INPUT));
   if (sent !== events.length) {
-    throw new Error(`SendInput accepted only ${sent} of ${events.length} events`);
+    throw new Error(
+      `SendInput accepted only ${sent} of ${events.length} events`,
+    );
   }
   // Only tagged events are expected to show up as agent input; untagged test
   // events must land in the interference counter (cc-haha _record semantics).
-  monitor.expectedAgentCount += events.filter((e) => eventExtraInfo(e) === INPUT_TAG).length;
+  monitor.expectedAgentCount += events.filter(
+    (e) => eventExtraInfo(e) === INPUT_TAG,
+  ).length;
   return sent;
 }
 
@@ -352,7 +360,11 @@ function check(name, ok, detail) {
 }
 
 for (const [name, actual, expected] of SIZES) {
-  check(`struct layout ${name}`, actual === expected, `sizeof=${actual}, expected ${expected}`);
+  check(
+    `struct layout ${name}`,
+    actual === expected,
+    `sizeof=${actual}, expected ${expected}`,
+  );
 }
 
 // Criterion 1a: install both hooks from a CreateThread-spawned context.
@@ -392,7 +404,8 @@ const nativeInstall = { done: false, result: null };
 check(
   'hooks install from CreateThread-spawned context',
   nativeInstall.result?.kbd === true && nativeInstall.result?.mouse === true,
-  nativeInstall.result?.error ?? `kbd=${nativeInstall.result?.kbd} mouse=${nativeInstall.result?.mouse}`,
+  nativeInstall.result?.error ??
+    `kbd=${nativeInstall.result?.kbd} mouse=${nativeInstall.result?.mouse}`,
 );
 monitor.keyboardHook = nativeInstall.result?.kbdHandle ?? null;
 monitor.mouseHook = nativeInstall.result?.mouseHandle ?? null;
@@ -452,7 +465,10 @@ ensureMessageQueue();
 // Criterion 3: untagged SendInput -> interference.
 {
   const before = barrier();
-  const sent = sendInputs([untaggedKey(VK_F15, false), untaggedKey(VK_F15, true)]);
+  const sent = sendInputs([
+    untaggedKey(VK_F15, false),
+    untaggedKey(VK_F15, true),
+  ]);
   const after = barrier();
   check('untagged SendInput accepted', sent === 2, `sent=${sent}`);
   check(
@@ -478,7 +494,9 @@ ensureMessageQueue();
 // Criterion 4: barrier drains callbacks posted before it.
 {
   const before = barrier();
-  const sent = sendInputs(Array.from({ length: 10 }, (_, i) => taggedKey(VK_F15, i % 2 === 1)));
+  const sent = sendInputs(
+    Array.from({ length: 10 }, (_, i) => taggedKey(VK_F15, i % 2 === 1)),
+  );
   // Post the barrier immediately: all 10 events are already queued ahead of it.
   if (!PostThreadMessageW(monitor.threadId, WM_APP_INPUT_BARRIER, 0, 0)) {
     throw new Error('PostThreadMessageW(barrier) failed');
@@ -514,7 +532,9 @@ ensureMessageQueue();
   check(
     'hooks unhooked cleanly',
     !!kbdOk && !!mouseOk && !monitor.error,
-    monitor.error ? `error=${monitor.error}` : `kbd=${!!kbdOk} mouse=${!!mouseOk}`,
+    monitor.error
+      ? `error=${monitor.error}`
+      : `kbd=${!!kbdOk} mouse=${!!mouseOk}`,
   );
   sendInputs([taggedKey(VK_F15, false), taggedKey(VK_F15, true)]);
   await sleep(150);

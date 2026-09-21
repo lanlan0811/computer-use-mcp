@@ -1,0 +1,80 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  windows:
+    name: windows-latest (full)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # koffi and sharp ship native win32 binaries; only a Windows runner can
+      # really verify them, which is why this job runs the full suite.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Test
+        run: npm run test
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify build output has no sourcemaps
+        shell: pwsh
+        run: |
+          if (Test-Path dist/index.js) {
+            Write-Host "dist/index.js present"
+          } else {
+            Write-Host "dist/index.js missing"
+            exit 1
+          }
+          $maps = Get-ChildItem -Path dist -Recurse -Filter *.map -ErrorAction SilentlyContinue
+          if ($maps) {
+            Write-Host "::error::sourcemap files found in dist: $($maps -join ', ')"
+            exit 1
+          }
+          Write-Host "no .map files in dist"
+
+  ubuntu:
+    name: ubuntu-latest (static)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # Static checks only: catches type errors and case-sensitive import
+      # path mistakes that Windows would silently tolerate.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
