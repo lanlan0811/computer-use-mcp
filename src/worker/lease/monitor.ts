@@ -222,6 +222,20 @@ export class PhysicalInputMonitor implements AgentEventSink {
       Sleep(1);
     }
     this.checkError();
+    // Delivery-latency grace: hook events for our own SendInput can reach the
+    // queue a few milliseconds after the barrier message under load (Phase 5
+    // finding). Give them a fair chance to land before declaring that we
+    // stopped observing our own input — the check semantics are unchanged.
+    if (this.agentCount < this.expectedAgentCount) {
+      const deadline = Date.now() + 150;
+      while (
+        this.agentCount < this.expectedAgentCount &&
+        Date.now() < deadline
+      ) {
+        Sleep(10);
+        this.pump();
+      }
+    }
     if (this.agentCount < this.expectedAgentCount) {
       throw new InputMonitorUnavailable(
         "Windows stopped reporting this worker's tagged input; the action result cannot be trusted",

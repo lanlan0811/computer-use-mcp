@@ -67,6 +67,56 @@ function rpc(method, params) {
 
 const [command, ...args] = process.argv.slice(2);
 
+/** Run several actions in one server session: seq "click 1 2" "key enter" ...
+ *  Stops at the first failed action (fail-closed, like the dispatcher). */
+async function runSequence(steps) {
+  for (const step of steps) {
+    const [action, ...rest] = step.trim().split(/\s+/);
+    if (action === 'click') {
+      const result = await callTool('click', {
+        coordinate: [Number(rest[0]), Number(rest[1])],
+      });
+      if (result.result?.isError) {
+        throw new Error(
+          `click ${rest[0]},${rest[1]} failed: ${textOf(result.result)}`,
+        );
+      }
+      console.log(`click ${rest[0]},${rest[1]}: ${textOf(result.result)}`);
+    } else if (action === 'triple') {
+      const result = await callTool('triple_click', {
+        coordinate: [Number(rest[0]), Number(rest[1])],
+      });
+      if (result.result?.isError) {
+        throw new Error(
+          `triple ${rest[0]},${rest[1]} failed: ${textOf(result.result)}`,
+        );
+      }
+      console.log(`triple ${rest[0]},${rest[1]}: ${textOf(result.result)}`);
+    } else if (action === 'type') {
+      const result = await callTool('type_text', { text: rest.join(' ') });
+      if (result.result?.isError) {
+        throw new Error(`type failed: ${textOf(result.result)}`);
+      }
+      console.log(`type: ${textOf(result.result)}`);
+    } else if (action === 'key') {
+      const keyArgs = { text: rest[0] };
+      if (rest[1] !== undefined) keyArgs.repeat = Number(rest[1]);
+      const result = await callTool('press_key', keyArgs);
+      if (result.result?.isError) {
+        throw new Error(`key ${rest[0]} failed: ${textOf(result.result)}`);
+      }
+      console.log(
+        `key ${rest[0]}${rest[1] ? ` x${rest[1]}` : ''}: ${textOf(result.result)}`,
+      );
+    } else if (action === 'wait') {
+      await new Promise((r) => setTimeout(r, Number(rest[0])));
+      console.log(`wait ${rest[0]}ms`);
+    } else {
+      throw new Error(`unknown step: ${step}`);
+    }
+  }
+}
+
 async function handshake() {
   const init = await rpc('initialize', {
     protocolVersion: '2025-03-26',
@@ -105,7 +155,9 @@ async function finish() {
 try {
   await handshake();
 
-  if (command === 'init') {
+  if (command === 'seq') {
+    await runSequence(args);
+  } else if (command === 'init') {
     const list = await rpc('tools/list');
     const names = (list.result?.tools ?? []).map((t) => t.name);
     console.log(`tools: ${names.length} (expect 22)`);
